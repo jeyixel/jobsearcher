@@ -6,7 +6,7 @@ async def scrape_jobhub():
     print("Launching browser...")
     async with async_playwright() as p:
         # headless=False lets you see the browser open (useful for debugging)
-        browser = await p.chromium.launch(headless=False) 
+        browser = await p.chromium.launch(headless=True) 
         page = await browser.new_page()
 
         target_url = "https://jobhub.lk/en/Sri%20Lanka/search?q=software%20intern&type=Internship&sort-by=Relevance"
@@ -21,8 +21,8 @@ async def scrape_jobhub():
         print("Waiting for page content to load...")
         # Try multiple possible selectors — the original value may be missing dots
         container_selectors = [
-            "listings-container margin-top-35",
             ".listings-container.margin-top-35",
+            "listings-container margin-top-35",
             ".listings-container .margin-top-35",
             ".listings-container",
             "div.listings-container",
@@ -35,6 +35,7 @@ async def scrape_jobhub():
                 await page.wait_for_selector(sel, timeout=5000)
                 print(f"Container selector matched: '{sel}'")
                 container_found = True
+                print(f"Page content found using '{sel}'.")
                 break
             except Exception as e:
                 print(f"Container selector '{sel}' did not match: {e}")
@@ -51,8 +52,8 @@ async def scrape_jobhub():
         # PICK A SELECTOR: The class name shared by every single job card (e.g., '.job-card', '.listing-item').
         # Try several selectors for job cards (could be a tag or a class)
         jobcard_selectors = [
-            "job-listing",
             ".job-listing",
+            "job-listing",
             "div.job-listing",
             "job-listing-card",
         ]
@@ -117,27 +118,133 @@ async def scrape_jobhub():
                 print(f"Error reading date for a card: {e}")
                 date_text = "N/A"
 
-            # Create the object
+           # ... (after Date section)
+
+            # D. Link
+            # Since the card itself is an <a> tag, we get the 'href' directly from it.
+            try:
+                raw_link = await card.get_attribute("href")
+                
+                # Handling Relative URLs:
+                # The site likely returns "/job?id=123", so we prepend the domain.
+                if raw_link and raw_link.startswith("/"):
+                    job_link = f"https://jobhub.lk{raw_link}"
+                elif raw_link:
+                    job_link = raw_link
+                else:
+                    job_link = "N/A"
+            except Exception as e:
+                print(f"Error reading link for a card: {e}")
+                job_link = "N/A"
+
+            # Update the object
             job_obj = {
+                "Site": "JobHub",
                 "job_title": title_text.strip(),
                 "company": company_text.strip(),
-                "date": date_text.strip()
+                "date": date_text.strip(),
+                "link": job_link  # <--- Added here
             }
             
             extracted_data.append(job_obj)
 
         await browser.close()
         return extracted_data
+    
+# Scrape the ITpro.lk internships as well
+async def scrape_itpro():
+    print("--- Starting ITPro Scraper ---")
+    extracted_data = []
 
+    async with async_playwright() as p:
+        # Set headless=False to debug and find selectors visually!
+        browser = await p.chromium.launch(headless=True)
+        page = await browser.new_page()
+
+        target_url = "https://itpro.lk/jobs/internship/"
+        print(f"[ITPro] Navigating to: {target_url}")
+        await page.goto(target_url)
+
+        try:
+            # 1. WAIT FOR CONTAINER
+            # Look for the big div that holds the list of jobs.
+            print("[ITPro] Waiting for content...")
+            await page.wait_for_selector("#job-listings", timeout=10000)
+
+            # 2. IDENTIFY CARDS
+            # Look for the element that represents ONE job row.
+            job_cards = await page.query_selector_all("article")
+            print(f"[ITPro] Found {len(job_cards)} cards in ITpro.lk")
+
+            for card in job_cards:
+                try:
+                    # A. Job Title
+                    title_el = await card.query_selector(".job-title")
+                    title = await title_el.inner_text() if title_el else "N/A"
+
+                    # B. Company Name
+                    company_el = await card.query_selector(".jc-company")
+                    company = await company_el.inner_text() if company_el else "N/A"
+
+                    # C. Date
+                    date_el = await card.query_selector(".time-posted")
+                    date = await date_el.inner_text() if date_el else "N/A"
+
+                    # D. Link
+                    # Check if the link is on the card itself or a 'Apply' button inside
+                    link_el = await card.query_selector(".job-record-link") 
+                    raw_link = await link_el.get_attribute("href") if link_el else "N/A"
+                    
+                    # Fix relative links if ITPro uses them
+                    if raw_link and raw_link.startswith("/"):
+                        link = f"https://itpro.lk{raw_link}"
+                    else:
+                        link = raw_link
+
+                    extracted_data.append({
+                        "Site": "ITPro.lk",
+                        "job_title": title.strip(),
+                        "company": company.strip(),
+                        "date": date.strip(),
+                        "link": link
+                    })
+                except Exception as e:
+                    print(f"[ITPro] Error parsing a card: {e}")
+
+        except Exception as e:
+            print(f"[ITPro] Global error: {e}")
+
+        await browser.close()
+        print(f"--- ITPro Finished ({len(extracted_data)} jobs) ---")
+        return extracted_data
+
+# ==========================================
+# MAIN EXECUTION
+# ==========================================
 def save_locally(data):
-    filename = "jobhub_internships.json"
+    filename = "all_internships.json"
     try:
         with open(filename, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=4, ensure_ascii=False)
-        print(f"\nSUCCESS: Scraped {len(data)} jobs. Data saved to '{filename}'")
+        print(f"\nSUCCESS: Saved {len(data)} total jobs to '{filename}'")
     except Exception as e:
         print(f"Error saving file: {e}")
 
+async def main():
+    # This runs both scrapers AT THE SAME TIME (Concurrent)
+    # It waits for both to finish before continuing.
+    print("Running scrapers concurrently...")
+    
+    # gather returns a list of results: [result_from_jobhub, result_from_itpro]
+    results = await asyncio.gather(
+        scrape_jobhub(),
+        scrape_itpro()
+    )
+    
+    # Flatten the list of lists into one big list
+    all_jobs = results[0] + results[1]
+    
+    save_locally(all_jobs)
+
 if __name__ == "__main__":
-    data = asyncio.run(scrape_jobhub())
-    save_locally(data)
+    asyncio.run(main())
