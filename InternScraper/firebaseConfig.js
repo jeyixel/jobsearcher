@@ -1,23 +1,11 @@
-import { initializeApp } from "firebase/app";
-import { initializeAuth, getReactNativePersistence } from 'firebase/auth';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+// services/firebase.js (or wherever you keep this file)
 
-// Your web app's Firebase configuration
-const firebaseConfig = {
-  apiKey: "AIzaSyBkblhh5ncLb9yuWXiIy9hBrHnpkYy0ZEs",
-  authDomain: "internsearch-a124f.firebaseapp.com",
-  projectId: "internsearch-a124f",
-  storageBucket: "internsearch-a124f.firebasestorage.app",
-  messagingSenderId: "520036392238",
-  appId: "1:520036392238:web:060ec66072d375e5fbeebf"
-};
+import auth from '@react-native-firebase/auth';
+import firestore from '@react-native-firebase/firestore';
+import messaging from '@react-native-firebase/messaging';
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+// That's it!
+// We do NOT need initializeApp() or firebaseConfig.
+// The library automatically reads your keys from google-services.json
 
-// Initialize Auth with persistence (Optional, but recommended for mobile)
-const auth = initializeAuth(app, {
-  persistence: getReactNativePersistence(AsyncStorage)
-});
-
-export { app, auth };
+export { auth, firestore, messaging };
