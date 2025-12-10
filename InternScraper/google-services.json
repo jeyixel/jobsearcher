@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "520036392238",
+    "project_id": "internsearch-a124f",
+    "storage_bucket": "internsearch-a124f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:520036392238:android:d6c3535e2b8958c1fbeebf",
+        "android_client_info": {
+          "package_name": "com.jeyixel.jobsearcher"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCKiorZjxeVct9TrmegoXVSL_VJpFNpru8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
