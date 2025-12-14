@@ -1,25 +1,37 @@
 import asyncio
+import logging
+import os
+import sys
 import firebase_admin
 from firebase_admin import credentials, firestore, messaging
 from scraper import scrape_jobhub, scrape_itpro, scrape_Devjobs # Importing your functions
 
 # 1. INITIALIZE FIREBASE
 # You must have 'serviceAccountKey.json' in this folder.
-if not firebase_admin._apps:
-    cred = credentials.Certificate("serviceAccountKey.json")
-    firebase_admin.initialize_app(cred)
+if not firebase_admin._apps: # this line prevents re-initialization error by checking if already initialized
+    key_path = "serviceAccountKey.json"
+    if not os.path.exists(key_path):
+        print("❌ serviceAccountKey.json not found. Place the file in the scraper folder.")
+        sys.exit(1)
+    cred = credentials.Certificate(key_path) # reads the service account key and returns a credential object
+    firebase_admin.initialize_app(cred) # initializes the Firebase app with the given credentials
 
 db = firestore.client()
 
-async def get_existing_job_ids():
+def get_existing_job_ids():
     """
     Fetches all document IDs from the 'internships' collection.
     Returns a set of IDs for fast comparison.
     """
     print("Fetching existing jobs from Firestore...")
-    docs = db.collection("internships").stream()
-    # We use a set() because looking up items in a set is instant (O(1))
-    return {doc.id for doc in docs}
+    
+    try:
+        docs = db.collection("internships").stream()
+        # We use a set() because looking up items in a set is instant (O(1))
+        return {doc.id for doc in docs}
+    except Exception as e:
+        print(f"❌ Error fetching existing jobs: {e}")
+        return set() # Return empty set on error
 
 def send_push_notification(new_jobs_count, sample_job):
     """
@@ -59,8 +71,13 @@ async def run_bot():
     print("\n=== STARTING BOT ORCHESTRATOR ===")
     
     # 1. GET OLD STATE
-    existing_ids = await asyncio.to_thread(get_existing_job_ids)
-    print(f"Existing jobs in DB: {len(existing_ids)}")
+    try:
+        existing_ids = get_existing_job_ids()
+        print(f"Existing jobs in DB: {len(existing_ids)}")
+    except Exception as e:
+        print(f"❌ Failed to get existing job IDs: {e}")
+        existing_ids = set()  # Fallback to empty set
+        print("Proceeding with empty existing IDs set.")
 
     # 2. GET NEW STATE (Scrape)
     print("Running scrapers...")
@@ -71,7 +88,7 @@ async def run_bot():
     )
     # Combine lists
     scraped_jobs = results[0] + results[1] + results[2]
-    print(f"Total jobs scraped: {len(scraped_jobs)}")
+    print(f"Total new jobs scraped: {len(scraped_jobs)}")
 
     # 3. COMPARE (Diffing)
     new_jobs_found = []

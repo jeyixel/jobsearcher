@@ -1,3 +1,5 @@
 Backend/scraper/jobhub_internships.json
 Backend/scraper/all_internships.json
 Backend/scraper/serviceAccountKey.json
+Backend/scraper/__pycache__/scraper.cpython-313.pyc
+**/__pycache__/
