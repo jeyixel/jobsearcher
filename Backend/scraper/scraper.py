@@ -1,6 +1,7 @@
 import asyncio
 import json
 import hashlib
+import re
 from urllib.parse import urljoin
 from playwright.async_api import async_playwright
 
@@ -83,52 +84,42 @@ async def scrape_Devjobs():
 
         target_url = "https://devjobs.lk/intern-jobs"
         print(f"[Devjobs] Navigating to: {target_url}")
-        # Optimized timeout settings
         await page.goto(target_url, timeout=60000, wait_until="domcontentloaded")
 
         try:
             print("[Devjobs] Waiting for content...")
-            await page.wait_for_selector(".p-3.rounded.mt-3", timeout=10000)
+            # We wait for the LINK element now, not the card body
+            await page.wait_for_selector("a.card-link", timeout=10000)
 
-            job_cards = await page.query_selector_all(".card-body")
+            # --- KEY CHANGE HERE ---
+            # We select the Anchor tag (<a>) directly. 
+            # This contains the 'href' we need.
+            job_cards = await page.query_selector_all("a.card-link")
             print(f"[Devjobs] Found {len(job_cards)} cards.")
 
             for card in job_cards:
                 try:
-                    title_el = await card.query_selector(".card-title.text-capitalize")
+                    # 1. GET THE LINK (Directly from the main card element)
+                    raw_link = await card.get_attribute("href")
+                    if raw_link:
+                        link = raw_link.strip()
+                        # print(f"[Devjobs DEBUG] Found Link: {link}") # <--- DEBUG PRINT
+                    else:
+                        link = "N/A"
+                        print("[Devjobs DEBUG] Link was N/A!")
+
+                    # 2. Get Title (Search inside the card)
+                    title_el = await card.query_selector(".card-title")
                     title = await title_el.inner_text() if title_el else "N/A"
 
+                    # 3. Get Company
                     company_el = await card.query_selector(".card-text.mb-0")
                     company = await company_el.inner_text() if company_el else "N/A"
 
+                    # 4. Get Date
                     date_el = await card.query_selector(".text-muted")
                     date = await date_el.inner_text() if date_el else "N/A"
 
-                    link = "N/A"
-                    raw_link = None
-
-                    # Prefer the Apply button
-                    apply_btn = await card.query_selector(".btn.w-100.btn-primary.mt-4")
-                    if apply_btn:
-                        raw_link = await apply_btn.get_attribute("href")
-                        if not raw_link:
-                            raw_link = await apply_btn.get_attribute("data-href")
-                        if not raw_link:
-                            onclick = await apply_btn.get_attribute("onclick")
-                            if onclick and "http" in onclick:
-                                parts = onclick.split("'")
-                                if len(parts) >= 2:
-                                    raw_link = parts[1]
-
-                    if not raw_link:
-                        link_el = await card.query_selector(".job-record-link, a[href]")
-                        if link_el:
-                            raw_link = await link_el.get_attribute("href")
-
-                    if raw_link:
-                        link = urljoin(target_url, raw_link)
-
-                    # E. ID (New)
                     job_id = generate_id(link)
 
                     extracted_data.append({
