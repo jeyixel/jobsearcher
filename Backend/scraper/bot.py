@@ -120,12 +120,14 @@ async def run_bot():
     # 3. COMPARE (Diffing)
     new_jobs_found = []
     
-    # Batch write for performance
+    # Batch write for performance (commit in chunks to avoid limits)
     batch = db.batch()
     batch_counter = 0
     
     for job in scraped_jobs:
-        job_id = job['id']
+        job_id = job.get('id')
+        if not job_id:
+            continue
         
         # If this ID is NOT in our existing set, it's NEW.
         if job_id not in existing_ids:
@@ -135,14 +137,28 @@ async def run_bot():
             doc_ref = db.collection("internships").document(job_id)
             batch.set(doc_ref, job)
             batch_counter += 1
+            
+            # Commit periodically to respect Firestore limits (500 ops)
+            if batch_counter >= 400:
+                try:
+                    batch.commit()
+                    print(f"🔁 Committed a chunk of {batch_counter} writes to Firestore.")
+                except Exception as e:
+                    print(f"❌ Error committing batch chunk: {e}")
+                batch = db.batch()
+                batch_counter = 0
 
     # 4. SAVE & NOTIFY
     if new_jobs_found:
         print(f"🚀 Found {len(new_jobs_found)} NEW jobs!")
         
-        # Commit the batch to Firestore
-        batch.commit()
-        print("✅ New jobs saved to Firestore.")
+        # Commit any remaining writes
+        if batch_counter > 0:
+            try:
+                batch.commit()
+                print(f"✅ Committed final chunk of {batch_counter} writes to Firestore.")
+            except Exception as e:
+                print(f"❌ Error committing final batch: {e}")
 
         # Trigger FCM Notification
         # We send one notification summarizing the update
