@@ -5,16 +5,43 @@ import sys
 import firebase_admin
 from firebase_admin import credentials, firestore, messaging
 from scraper import scrape_jobhub, scrape_itpro, scrape_Devjobs # Importing your functions
+from dotenv import load_dotenv, find_dotenv
+
+# Load environment variables from .env in this (or parent) folder
+load_dotenv(find_dotenv())
 
 # 1. INITIALIZE FIREBASE
-# You must have 'serviceAccountKey.json' in this folder.
-if not firebase_admin._apps: # this line prevents re-initialization error by checking if already initialized
-    key_path = "serviceAccountKey.json"
-    if not os.path.exists(key_path):
-        print("❌ serviceAccountKey.json not found. Place the file in the scraper folder.")
+if not firebase_admin._apps:
+    # Directory where this script lives
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+
+    # Prefer environment variable (for cloud), otherwise default to local secrets file
+    env_key_path = os.getenv("FIREBASE_KEY_PATH")
+    if env_key_path:
+        # If env gives a relative path, resolve it relative to this file
+        key_path = env_key_path
+        if not os.path.isabs(key_path):
+            key_path = os.path.join(base_dir, key_path)
+    else:
+        # Local default: ./secrets/serviceAccountKey.json next to this script
+        print("⚠️ Warning: FIREBASE_KEY_PATH not set, stopping execution")
+        # you can uncomment below to use local file by default, but be cautious about committing secrets
+        # key_path = os.path.join()
         sys.exit(1)
-    cred = credentials.Certificate(key_path) # reads the service account key and returns a credential object
-    firebase_admin.initialize_app(cred) # initializes the Firebase app with the given credentials
+
+    if not os.path.exists(key_path):
+        print(f"❌ Error: Service Account Key not found at: {key_path}")
+        # Print current directory to help debug in logs
+        print(f"Current working directory: {os.getcwd()}") 
+        sys.exit(1)
+        
+    try:
+        cred = credentials.Certificate(key_path)
+        firebase_admin.initialize_app(cred)
+        print(f"✅ Firebase initialized using key at: {key_path}")
+    except Exception as e:
+        print(f"❌ Failed to initialize Firebase: {e}")
+        sys.exit(1)
 
 db = firestore.client()
 

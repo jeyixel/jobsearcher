@@ -21,7 +21,13 @@ async def scrape_jobhub():
 
         target_url = "https://jobhub.lk/en/Sri%20Lanka/search?q=software%20intern&type=Internship&sort-by=Relevance"
         print(f"[JobHub] Navigating to: {target_url}")
-        await page.goto(target_url, timeout=60000, wait_until="domcontentloaded")
+        try:
+            await page.goto(target_url, timeout=60000, wait_until="domcontentloaded")
+        except Exception as e:
+            print(f"[JobHub] Navigation error: {e}")
+            await browser.close()
+            print("--- JobHub Finished (0 jobs due to navigation error) ---")
+            return extracted_data
 
         try:
             print("[JobHub] Waiting for content...")
@@ -84,7 +90,13 @@ async def scrape_Devjobs():
 
         target_url = "https://devjobs.lk/intern-jobs"
         print(f"[Devjobs] Navigating to: {target_url}")
-        await page.goto(target_url, timeout=60000, wait_until="domcontentloaded")
+        try:
+            await page.goto(target_url, timeout=60000, wait_until="domcontentloaded")
+        except Exception as e:
+            print(f"[Devjobs] Navigation error: {e}")
+            await browser.close()
+            print("--- Devjobs Finished (0 jobs due to navigation error) ---")
+            return extracted_data
 
         try:
             print("[Devjobs] Waiting for content...")
@@ -151,7 +163,13 @@ async def scrape_itpro():
 
         target_url = "https://itpro.lk/jobs/internship/"
         print(f"[ITPro] Navigating to: {target_url}")
-        await page.goto(target_url, timeout=60000, wait_until="domcontentloaded")
+        try:
+            await page.goto(target_url, timeout=60000, wait_until="domcontentloaded")
+        except Exception as e:
+            print(f"[ITPro] Navigation error: {e}")
+            await browser.close()
+            print("--- ITPro Finished (0 jobs due to navigation error) ---")
+            return extracted_data
 
         try:
             print("[ITPro] Waiting for content...")
