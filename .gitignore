@@ -4,3 +4,4 @@ Backend/scraper/serviceAccountKey.json
 Backend/scraper/secrets/serviceAccountKey.json
 Backend/scraper/__pycache__/scraper.cpython-313.pyc
 **/__pycache__/
+Backend/scraper/.env
