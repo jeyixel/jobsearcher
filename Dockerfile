@@ -14,10 +14,11 @@ FROM mcr.microsoft.com/playwright/python:v1.49.0-jammy
 WORKDIR /app
 
 # ------------------------------------------------------------------- 
-# STEP 3: Copy Files 
-# We copy specifically from the Backend/scraper folder to the container root.
-# This ensures bot.py and scraper.py are in /app/
+# STEP 3: Copy Dependencies & Files 
+# First copy the Backend/requirements.txt so Docker can cache the
+# dependency layer, then copy the scraper code into /app/.
 # ------------------------------------------------------------------- 
+COPY Backend/requirements.txt ./requirements.txt
 COPY Backend/scraper/ .
 
 # -------------------------------------------------------------------

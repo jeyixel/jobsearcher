@@ -2,3 +2,4 @@ firebase-admin
 google-cloud-firestore
 playwright
 asyncio
+python-dotenv
