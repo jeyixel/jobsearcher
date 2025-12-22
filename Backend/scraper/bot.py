@@ -4,7 +4,7 @@ import os
 import sys
 import firebase_admin
 from firebase_admin import credentials, firestore, messaging
-from scraper import scrape_jobhub, scrape_itpro, scrape_Devjobs # Importing your functions
+from scraper import scrape_jobhub, scrape_itpro, scrape_Devjobs, save_locally # Importing your functions
 from dotenv import load_dotenv, find_dotenv
 
 # Load environment variables from .env in this (or parent) folder
@@ -116,6 +116,12 @@ async def run_bot():
     # Combine lists
     scraped_jobs = results[0] + results[1] + results[2]
     print(f"Total new jobs scraped: {len(scraped_jobs)}")
+
+    # Optionally save a local JSON snapshot like scraper.py's main
+    # try:
+    #     save_locally(scraped_jobs)
+    # except Exception as e:
+    #     print(f"⚠️ Failed to save local JSON snapshot: {e}")
 
     # 3. COMPARE (Diffing)
     new_jobs_found = []
